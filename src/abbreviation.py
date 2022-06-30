@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict, Counter
 from datetime import datetime
 from pathlib import Path
+from Hybrid import Hybrid_definition_mining
 
 import regex as re2
 
@@ -431,11 +432,68 @@ class abbreviations:
         logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
         self.log = logging.getLogger(__name__)
 
-        self.abbreviations = self.__biocify_abbreviations(self.__get_abbreviations(main_text, soup, config), file_path)
+        # self.abbreviations = self.__biocify_abbreviations(self.__get_abbreviations(main_text, soup, config), file_path)
+        self.abbreviations = self.__wh_findabbrev(self.__wh_getabbrev(main_text, soup, config), file_path)
         pass
 
     def to_dict(self):
         return self.abbreviations
+
+    def __wh_findabbrev(self, abbreviations, file_path):
+        offset = 0
+        template = {
+            "source": "Auto-CORPus (abbreviations)",
+            # "inputfile": file_path,
+            "date": f'{datetime.today().strftime("%Y%m%d")}',
+            "key": "autocorpus_abbreviations.key",
+            "documents": [
+                {
+                    "id": Path(file_path).name.split(".")[0],
+                    "inputfile": file_path,
+                    "passages": []
+                }
+            ]
+        }
+        passages = template["documents"][0]["passages"]
+        for pos in abbreviations.keys():
+            counter = 1
+            shortTemplate = {
+                "position": pos
+            }
+            for re_format in abbreviations[pos].keys():
+                shortTemplate[re_format] = abbreviations[pos][re_format]
+            passages.append(shortTemplate)
+        return template
+
+    def __wh_getabbrev(self, main_text, soup, config):
+        paragraphs = main_text['paragraphs']
+        all_abbreviations = {}
+        para_num = 1
+        for paragraph in paragraphs:
+            maintext = paragraph['body']
+            pairs = self.__re_find_abbreviation(maintext, para_num)
+            all_abbreviations.update(pairs)
+            para_num += 1
+        return all_abbreviations
+
+    def __re_find_abbreviation(self, main_text, para_num):
+        re_letter = r'\b[A-Z](?:[_&-.///a-z]?[A-Z0-9α-ωΑ-Ω])+[a-z]*\b'
+        re_digit = r'\b[0-9](?:[,_:&-.///]?[a-zA-Z0-9α-ωΑ-Ω])+[A-Z]{1}(?:[,_:&-.///]?[a-zA-Z0-9α-ωΑ-Ω])*\b'
+        re_symble = r'[[α-ωΑ-Ω][0-9A-Z](?:[_&-.///]?[A-Z0-9])+[]](?:[_&-.///]?[A-Z0-9])+\b'
+
+        res = {}
+        sentence_iterator = enumerate(self.__yield_lines_from_doc(main_text))
+        for i, sentence in sentence_iterator:
+            res1 = re2.findall(re_letter, sentence)
+            res2 = re2.findall(re_digit, sentence)
+            res3 = re2.findall(re_symble, sentence)
+            if len(res1) + len(res2) + len(res3) > 0:
+                all_abb = list(set(res1 + res2 + res3))
+                temp = {'sentence': sentence}
+                for i in all_abb:
+                    temp[i] = Hybrid_definition_mining(sentence, i)
+                res[f'paragraph{para_num}_sentence{i}'] = temp
+        return res
 
 
 class Candidate(str):
