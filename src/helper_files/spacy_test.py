@@ -1,13 +1,13 @@
 import spacy
 import regex as re
 from scispacy.abbreviation import AbbreviationDetector
-re1 = r'\b[A-Z](?:[_&-.///a-z]?[A-Z0-9α-ωΑ-Ω])+[a-z]*\b'
+re1 = r'\b[A-Z](?:[&_.-///a-z]?[A-Z0-9α-ωΑ-Ω])+[a-z]*\b'
 # re1_1 = r'\b[A-Z](?:\W?[A-Z0-9])+[a-z]?\b'
 # re2 = r'\b[A-Z](?:[&.]?[A-Z])+\b'
 # re3 = r'\s[A-Z](?:[&.]?[A-Z])+\s'
 
 # re_dig1 = r'\b[0-9](?:[_:&-.///]?[a-zA-Z0-9])+\b'
-re_dig2 = r'\b[0-9](?:[,_:&-.///]?[a-zA-Z0-9α-ωΑ-Ω])+[A-Z]{1}(?:[,_:&-.///]?[a-zA-Z0-9α-ωΑ-Ω])*\b'
+re_dig2 = r'\b[0-9](?:[,:&_.-///]?[a-zA-Z0-9α-ωΑ-Ω])+[A-Z]{1}(?:[,:&_.-///]?[a-zA-Z0-9α-ωΑ-Ω])*\b'
 # re_dig2_1 = r'[\s([][0-9](?:[,_:&-.///]?[a-zA-Z0-9])+[a-zA-Z]{1}(?:[_:&-.///]?[a-zA-Z0-9])*\b'
 
 re_sb = r'[[α-ωΑ-Ω][0-9A-Z](?:[_&-.///]?[A-Z0-9])+[]](?:[_&-.///]?[A-Z0-9])+\b'
@@ -19,6 +19,7 @@ text4 = 'For example, PD1 and PDX differ in double bond geometry and stereochemi
 text5 = 'However, 9,10,13-TriHOME and 9,12,13-TriHOME (329 > 171) only partially resolved. Furthermore, for coeluting isomers 9-HODE and 13-HODE, and partially resolved isomers 9-EpOME and 13-EpOME, 9-HODE and 9-EpOME were each found to produce a very minor peak at m/z 195, forming an MRM transition 295 > 195, corresponding to less than 1% of the response at the same concentration level for 13-HODE and 13-EpOME. '
 text6 = 'Generation of oxylipins derived from n-6 LA and AA, and n-3 ALA, EPA, and DHA via lipoxygenase (LOX), cyclooxygenase (COX), cytochrome P450 (CYP), and non-enzymatic oxidation. Colors depict the precursor pathway metabolite families: LA (green), AA (red), ALA (tan), EPA (purple), DHA (dark red), LA, linoleic acid; AA, arachidonic acid; ALA, α-linolenic acid, EPA, eicosapentaenoic acid; DHA, docosahexaenoic acid; EpODE, epoxy-octadecadienoic acid; HODE, hydroxy-octadecadienoic acid; oxoODE, keto-octadecadienoic acid; EPOME, epoxy-octadecenoic acid; DiHOME, dihydroxy-octadecenoic acid, TriHOME, trihydroxy-octadecenoic acid; H-E-LA, hydroxyepoxy-octadecenoic acid; K-E-LA, keto-epoxy-octadecenoic acid; HPOTrE, hydroperoxy-octadecatrienoic acid, HOTrE, hydroxyoctadecatrienoic acid; PGG, hydroperoxide-endoperoxide prostaglandin; PG, prostaglandin; TX, thromboxane; LT, leukotriene; LX, lipoxin; HpETE, hydroperoxyeicosatetraenoic acids; HETE, hydroxypentaenoic acid; oxoETE, keto-eicosatetraenoic acid; EET, epoxyeicosatrienoic acids; HpEPE, hydroperoxyeicosapentaenoic acids; HEPE, hydroxyeicosapentaenoic acid; EEQ, epoxy eicosatetraenoic acid; HpDHA, hydroperoxy-docosahexaenoic acid, HDHA, hydroxyl-docosahexaenoic acid; EDP, epoxy docosapentaenoic acid; DiHDHA, hydroxydocosahexaenoic acid; PDX, 10S,17S-DiHDHA; PD/NPD, protectin; Rv, resolving'
 text7 = ' as we have demonstrated previously using isotope-coded affinity tag (ICAT) '
+text8 = 'The proportion of fatty acid variance explained by a particular variant allele was calculated for each cohort from the formula corr(Y, Ŷ)2 ≌ (β2*2*MAF(1-MAF))/Var(Y), where β is the regression coefficient for one copy of the allele, MAF is the minor allele frequency and Var(Y) is the variance of the fatty acid (Online Supplemental Material)'
 
 nlp = spacy.load('D:/Downloads/jinweihao/2021-2022/DS-NLP/scispacy_vol/en_core_sci_sm-0.5.0/en_core_sci_sm/en_core_sci_sm-0.5.0')
 nlp.add_pipe("abbreviation_detector")
@@ -29,7 +30,7 @@ for abrv in doc._.abbreviations:
 	print(f"{abrv} \t ({abrv.start}, {abrv.end}) \t {abrv._.long_form}")
 
 
-res = re.findall(re1, text7)
+res = re.findall(re_dig2, text8)
 print(res)
 
 # def findbestCandidates(short, long):
