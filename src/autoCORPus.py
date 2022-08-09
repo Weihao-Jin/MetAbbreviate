@@ -336,6 +336,8 @@ class autoCORPus:
         self.empty_tables = {}
         self.tables = {}
         self.abbreviations = {}
+        self.Hybrid_scores = {}
+        self.potential_abbres = {}
         self.has_tables = False
 
         # handle main_text
@@ -343,7 +345,10 @@ class autoCORPus:
             soup = self.__handle_html(self.file_path, config)
             self.main_text = self.__extract_text(soup, config)
             try:
-                self.abbreviations = abbreviations(self.main_text, soup, config, self.file_path).to_dict()
+                ABB = abbreviations(self.main_text, soup, config, self.file_path)
+                self.abbreviations = ABB.to_dict()
+                self.Hybrid_scores = ABB.get_hybrid_scores()
+                self.potential_abbres = ABB.get_potential_abbres()
             except Exception as e:
                 print(e)
         if linked_tables:
@@ -370,6 +375,12 @@ class autoCORPus:
 
     def abbreviations_to_bioc_json(self, indent=2):
         return json.dumps(self.abbreviations, ensure_ascii=False, indent=indent)
+
+    def hybridScores_to_bioc_json(self, indent=2):
+        return json.dumps(self.Hybrid_scores, ensure_ascii=False, indent=indent)
+
+    def potentialAbbres_to_bioc_json(self, indent=2):
+        return json.dumps(self.potential_abbres, ensure_ascii=False, indent=indent)
 
     def to_json(self, indent=2):
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)

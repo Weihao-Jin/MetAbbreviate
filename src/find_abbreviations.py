@@ -88,6 +88,3 @@ def onefile_abbreviation(file_path, config, to_dir):
     abbreviations(main_text, soup, config, file_path).to_dict()
 
     return main_text
-
-file_path = 'D:/Downloads/jinweihao/2021-2022/DS-NLP/data/MWAS_PMC_corpus/Analytica_Chimica_Acta_Journal/html/PMC3040422.html'
-main_t = onefile_abbreviation()

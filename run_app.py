@@ -189,6 +189,10 @@ with open(logFileName, "w") as log_file:
                         outfp.write(AC.main_text_to_bioc_xml())
                 with open(out_dir + "/" + key.split("/")[-1] + "_abbreviations.json", "w", encoding='utf-8') as outfp:
                     outfp.write(AC.abbreviations_to_bioc_json())
+                with open(out_dir + "/" + key.split("/")[-1] + "_Hybrid_Scores.json", "w", encoding='utf-8') as outfp:
+                    outfp.write(AC.hybridScores_to_bioc_json())
+                with open(out_dir + "/" + key.split("/")[-1] + "_potential_abbreviations.json", "w", encoding='utf-8') as outfp:
+                    outfp.write(AC.potentialAbbres_to_bioc_json())
 
             # AC does not support the conversion of tables or abbreviations to the XML format
             if AC.has_tables:
