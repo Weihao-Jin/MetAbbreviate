@@ -30,9 +30,9 @@ replace_dict = read_replacement_file()
 
 def abbre_pattern(abbreviation: str):
     pattern = 'w'
-    for ch in ['/', '\\', ',', '.', '-', '_', '&']:
+    for ch in ['/', '\\', ',', '.', '-', '_', '&', '+']:
         if ch in abbreviation:
-            abbreviation = abbreviation.replace(ch, ' ')
+            abbreviation = abbreviation.replace(ch, ' ').strip()
     for c in abbreviation:
         if c == ' ':
             pattern += ' '
@@ -76,9 +76,9 @@ def find_all_candidate(arr_sentence: list, abbreviation: str, start_idx, end_idx
     clean_abbreviation = abbreviation
 
     # clean abbreviation
-    for ch in ['/', '\\', ',', '.', '-', '_', '&']:
+    for ch in ['/', '\\', ',', '.', '-', '_', '&', '+']:
         if ch in clean_abbreviation:
-            clean_abbreviation = clean_abbreviation.replace(ch, ' ')
+            clean_abbreviation = clean_abbreviation.replace(ch, ' ').strip()
     separate_abbre = []
     numbers = ''
     for i in range(len(clean_abbreviation)):
@@ -110,11 +110,13 @@ def find_all_candidate(arr_sentence: list, abbreviation: str, start_idx, end_idx
             for j in range(start_idx, end_idx):
                 # if arr_sentence[j].lower()[0] in stop_words:
                 #     continue
-                if abbre_char.lower() == arr_sentence[j].lower()[0]:
+                if abbre_char.isnumeric() and arr_sentence[j].lower():
+                    all_candidate.append([(j, -1)])
+                elif abbre_char.lower() == arr_sentence[j].lower()[0]:
                     all_candidate.append([(j, 0)])
                     # print(all_candidate)
-                if replace_char is not None and replace_char.lower() == arr_sentence[j].lower()[0]:
-                    all_candidate.append([(j, 0)])
+                elif replace_char is not None and replace_char.lower() == arr_sentence[j].lower()[0]:
+                    all_candidate.append([(j, -2)])
         elif len(all_candidate) > 0:
             for one in all_candidate:
                 tmp_oneCandidate = one.copy()
@@ -156,8 +158,9 @@ def find_all_candidate(arr_sentence: list, abbreviation: str, start_idx, end_idx
     # print(all_candidate)
 
 
-def separate_sentence(sentence: str):
-    clean_sentence = sentence
+def separate_sentence(sentence: str, abbre: str):
+    # clean_sentence = sentence
+    tmp_sen = sentence.replace(abbre, '<<FLAG>>')
     char_to_replace = {'(': ' ',
                        ')': ' ',
                        '{': ' ',
@@ -166,17 +169,36 @@ def separate_sentence(sentence: str):
                        ']': ' ',
                        ', ': ' ',
                        '; ': ' ',
-                       '-': ' '}
+                       '-': ' ',
+                       '+': ' ',
+                       '_': ' ',
+                       ',': ' ',
+                       '‐': ' '}
     for key, value in char_to_replace.items():
-        clean_sentence = clean_sentence.replace(key, value)
-    arr_sentence = clean_sentence.split(' ')
+        tmp_sen = tmp_sen.replace(key, value)
+    # print(clean_sentence)
+    arr_sentence = tmp_sen.split(' ')
     arr_sentence = list(filter(lambda a: a != '', arr_sentence))
-    return arr_sentence
+    # print(arr_sentence)
+    new_arr_sentence = []
+    for item in arr_sentence:
+        if '<<FLAG>>' == item:
+            # print(item)
+            new_arr_sentence.append(abbre)
+            continue
+        elif '<<FLAG>>' in item:
+            item = item.replace('<<FLAG>>', abbre)
+        match = re.match(r"([^0-9]+)([0-9]+)", item, re.I)
+        if match:
+            new_arr_sentence.extend(match.groups())
+        else:
+            new_arr_sentence.append(item)
+    return new_arr_sentence
 
 
 def generate_potential_definitions(sentence: str, abbreviation: str):
     abb_pattern = abbre_pattern(abbreviation)
-    arr_sentence = separate_sentence(sentence)
+    arr_sentence = separate_sentence(sentence, abbreviation)
     # print(arr_sentence)
 
     max_len = min(len(abb_pattern) + 5, len(abb_pattern) * 2)
@@ -203,7 +225,7 @@ def formationRules_and_definition_patterns(sentence: str, abbreviation: str, can
         formation_rules = []
         def_patterns = []
         stop_words = list(stopwords.words('english'))
-        arr_sentence = separate_sentence(sentence)
+        arr_sentence = separate_sentence(sentence, abbreviation)
         for item in candidates:
             one_def = 'z'
             one_candidate_rule = []
@@ -221,10 +243,14 @@ def formationRules_and_definition_patterns(sentence: str, abbreviation: str, can
                     tmp_n = item[i][1]
                     if tmp_n == 0:
                         one_candidate_rule.append((item[i][0], 'f'))
-                    elif tmp_n < len(arr_sentence[item[i][0]]) - 1:
+                    elif 0< tmp_n < len(arr_sentence[item[i][0]]) - 1:
                         one_candidate_rule.append((item[i][0], 'i'))
                     elif tmp_n == len(arr_sentence[item[i][0]]) - 1:
                         one_candidate_rule.append((item[i][0], 'l'))
+                    elif tmp_n == -1:
+                        one_candidate_rule.append((item[i][0], 'e'))
+                    elif tmp_n == -2:
+                        one_candidate_rule.append((item[i][0], 'r'))
                 last_idx = item[i][0]
             if one_def[1] != 's':
                 formation_rules.append(one_candidate_rule)
@@ -232,7 +258,7 @@ def formationRules_and_definition_patterns(sentence: str, abbreviation: str, can
     return abb_pattern, formation_rules, def_patterns
 
 
-def find_best_candidate(a_pattern: str, d_patterns: list, formation_rules: list):
+def find_best_candidate(a_pattern: str, d_patterns: list, formation_rules: list, sentence: str, abbreviation: str):
     res = {}
     for i in range(len(d_patterns)):
         cons = 1
@@ -250,28 +276,47 @@ def find_best_candidate(a_pattern: str, d_patterns: list, formation_rules: list)
             idx_list.append(item[0])
             if item[1] == 'f' or item[1] == 'e':
                 score += 3
+            elif item[1] == 'r':
+                score += 2.5
             elif item[1] == 'i':
                 score += 2
             elif item[1] == 'l':
                 score += 1
         res[i] = score * cons - np.var(idx_list)
+    # print('\n\n\t\t\t\tformation rules\t\t\t\t\t\t\t\t\tscores')
+    # for i in range(len(formation_rules)):
+    #     print(f'\t\t\t\t{formation_rules[i]}\t\t{res[i]}')
     res = {k: v for k, v in sorted(res.items(), key=lambda item: item[1], reverse=True)}
-    idx = list(res.keys())[0]
-    return d_patterns[idx], formation_rules[idx], res[idx]
+    # print(res)
+    definition = ''
+    score = -1
+    for key in res.keys():
+        tmp_definition = find_definition(sentence, formation_rules[key], abbreviation)
+        # print(key)
+        # print(tmp_definition)
+        if tmp_definition in abbreviation or abbreviation in tmp_definition:
+            continue
+        else:
+            score = res[key]
+            definition = tmp_definition
+            break
+    return definition, score
 
 
-def find_definition(sentence: str, formation_rules: list):
+def find_definition(sentence: str, formation_rules: list, abbre: str):
     """
 
     :type formation_rules: object
     """
+    # print(formation_rules)
     # arr_sentence = separate_sentence(sentence)
     # res = arr_sentence[formation_rules[0][0]:(formation_rules[-1][0]+1)]
     #
     # output = ' '.join(res)
     # return output.replace('\n', ' ')
 
-    arr_sentence = separate_sentence(sentence)
+    arr_sentence = separate_sentence(sentence, abbre)
+    abbreviation_idx = [i for i, e in enumerate(arr_sentence) if e == abbre]
     start_word = arr_sentence[formation_rules[0][0]]
     end_word = arr_sentence[formation_rules[-1][0]]
     # print(start_word)
@@ -281,30 +326,35 @@ def find_definition(sentence: str, formation_rules: list):
     # print(arr_sentence)
     # print(appearances_start)
     # print(appearances_end)
-    indexes_start = [idx for idx in range(len(sentence)) if sentence.startswith(start_word, idx)]
-    indexes_end = [idx for idx in range(len(sentence)) if sentence.startswith(end_word, idx)]
-
+    tmp_indexes_start = [idx for idx in range(len(sentence)) if sentence.startswith(start_word, idx)]
+    tmp_indexes_end = [idx for idx in range(len(sentence)) if sentence.startswith(end_word, idx)]
+    min_start_idx = len(''.join(arr_sentence[0:max(appearances_start[0], 0)]))
+    min_end_idx = len(''.join(arr_sentence[0:max(appearances_end[0], 0)]))
+    indexes_start = [i for i in tmp_indexes_start if i >= min_start_idx]
+    indexes_end = [i for i in tmp_indexes_end if i >= min_end_idx]
+    # indexes_start = [i for i in tmp_indexes_start]
+    # indexes_end = [i for i in tmp_indexes_end]
     # print(indexes_start)
     # print(indexes_end)
     idx_start = indexes_start[appearances_start.index(formation_rules[0][0])]
     idx_end = indexes_end[appearances_end.index(formation_rules[-1][0])] + len(end_word) - 1
-    # print(idx_start)
-    # print(idx_end)
     # check if result misses content connected by hyphen or inside the brackets
 
-    if sentence[idx_start - 1] == '-':
-        for i in range(idx_start - 1, -1, -1):
-            if sentence[i] != ' ':
-                idx_start = i
-            else:
-                break
+    if idx_start - 1 > -1:
+        if sentence[idx_start - 1] == '-':
+            for i in range(idx_start - 1, -1, -1):
+                if sentence[i] != ' ':
+                    idx_start = i
+                else:
+                    break
 
-    if sentence[idx_end + 1] == '-':
-        for i in range(idx_end + 1, len(sentence)):
-            if sentence[i] != ' ':
-                idx_end = i
-            else:
-                break
+    if idx_end + 1 < len(sentence):
+        if sentence[idx_end + 1] == '-':
+            for i in range(idx_end + 1, len(sentence)):
+                if sentence[i] != ' ':
+                    idx_end = i
+                else:
+                    break
 
     start_bracket_counts = 0
     end_bracket_counts = 0
@@ -326,7 +376,13 @@ def find_definition(sentence: str, formation_rules: list):
             idx_end = i - 1
             break
 
-    return sentence[idx_start:(idx_end + 1)].replace('\n', ' ').strip()
+    output = sentence[idx_start:(idx_end + 1)].replace('\n', ' ').strip()
+    if output != '':
+        return output
+    else:
+        words = arr_sentence[formation_rules[0][0]:(formation_rules[-1][0] + 1)]
+        output = ' '.join(words).replace('\n', ' ').strip()
+        return output
 
 
 def complete_abbreviations(abbs: list, sentence: str):
@@ -384,10 +440,8 @@ def Hybrid_definition_mining(sentence: str, abbreviation: str) -> object:
     a2, formation_rules2, definition_patterns2 = formationRules_and_definition_patterns(sentence, abbreviation, ls_can2)
     if len(formation_rules1) + len(formation_rules2) == 0:
         return '', -1
-    def_pattern, form_rule, score= find_best_candidate(a1, (definition_patterns1 + definition_patterns2), (formation_rules1 + formation_rules2))
-    res_str = find_definition(sentence, form_rule)
-    if res_str == abbreviation:
-        return '', -1
+    res_str, score= find_best_candidate(a1, (definition_patterns1 + definition_patterns2), (formation_rules1 + formation_rules2), sentence, abbreviation)
+    # res_str = find_definition(sentence, form_rule, abbreviation)
     return (res_str, round(score, 2))
 
 #
@@ -410,6 +464,50 @@ def Hybrid_definition_mining(sentence: str, abbreviation: str) -> object:
 # for i in res.items():
 #     print(i)
 
+# txt3 = 'We have named the new method hydriDK+ (hybrid algorithm + domain knowledge).'
+# abb3 = 'hydriDK+'
+# abb4 = 'hydriDK+'
+#
+# txt1 = "Treatment options available for GERD range from over-the-counter (OTC) antacids to proton pump inhibitors (PPIs) and anti-reflux surgery."
+# abb1 = 'PPIs'
+# #
+# txt2 = 'antiserum showed that DC-SIGN1 is expressed on endothelial cells and CC chemokine receptor 5 (CCR5)-positive macrophage-like cells'
+# txt2_1 = 'inducing the production of RANTES and decreasing C-C chemokine receptor 5 (CCR5) expression.'
+# abb2 = 'CCR5'
+#
+# txt = 'However, heat shock protein 70 (HSP70) and cytochrome P450 (CYP450) were expressed significantly and constantly only in LNM NPC patients'
+# abb = 'CYP450'
+#
+# txt5 = 'α-Linolenic acid (ALA,ω-3) and linoleic acid (LA,ω-6), which are the precursors of EPA'
+# abb5 = 'ALA'
+#
+# txt6 = 'ADNI is funded by the NIA, the National Institute of Biomedical Imaging and Bioengineering (NIBIB) and through generous contributions from Abbott, AstraZeneca AB, Bayer Schering Pharma AG, Bristol-Myers Squibb, Eisai Global Clinical Development, Elan Corporation, Genentech, GE Healthcare, GlaxoS'
+# abb6 = 'NIBIB'
+#
+# txt7 = 'graded using the Early Treatment Diabetic Retinopathy Study (ETDRS) severity scale and the'
+# abb7 = 'ETDRS'
+#
+# print(f'\n\t\t\t\t{Hybrid_definition_mining(txt1, abb1)}')
+# print(f'\n\t\t\t\t{Hybrid_definition_mining(txt2, abb2)}')
+# print(f'\n\t\t\t\t{Hybrid_definition_mining(txt2_1, abb2)}')
+# print(separate_sentence(txt1, abb1))
+# print(Hybrid_definition_mining(txt3, abb3))
+# print(Hybrid_definition_mining(txt3, abb4))
+# print(Hybrid_definition_mining(txt, abb))
+# print(Hybrid_definition_mining(txt5, abb5))
+# print(Hybrid_definition_mining(txt6, abb6))
+# print(separate_sentence(txt, 'hydriDK'))
+# print(separate_sentence(txt, 'hydriDK+'))
+# print(Hybrid_definition_mining(txt7, abb7))
+
+# ls_can1, ls_can2 = generate_potential_definitions(txt5, abb5)
+#
+# a1, formation_rules1, definition_patterns1 = formationRules_and_definition_patterns(txt, abb, ls_can1)
+# a2, formation_rules2, definition_patterns2 = formationRules_and_definition_patterns(txt, abb, ls_can2)
+#
+# def_pattern, form_rule, score = find_best_candidate(a1, (definition_patterns1 + definition_patterns2),
+#                                                     (formation_rules1 + formation_rules2))
+# res_str = find_definition(txt, form_rule, abb)
 
 # # text = 'Two genomewide association study (GWAS) meta-analyses of 25(OH)D concentrations in populations of European ancestry have been conducted identifying loci including group-specific component (vitamin D binding protein) gene (GC), nicotinamide adenine dinucleotide synthetase 1 gene (NADSYN1)/7-dehydrocholesterol reductase gene (DHCR7), vitamin D 25-hydroxylase gene (CYP2R1), and vitamin D 24-hydroxylase gene (CYP24A1).'
 # # abb1 = 'NADSYN1'
@@ -463,5 +561,6 @@ def Hybrid_definition_mining(sentence: str, abbreviation: str) -> object:
 # #
 # # text3 = 'performed protein chip profiling analysis with surface-enhanced laser desorption ionization time-of-flight mass spectrometry (SELDI-TOF-MS) technology on sera from NPC patients and demonstrated that SAA may be a potentially usefully biomarker for NPC [24]'
 # # abb3 = 'SELDI-TOF-MS'
+
 
 

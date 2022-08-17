@@ -412,29 +412,30 @@ class abbreviations:
                 abbrev_json[key] = {clean_def: ["fulltext"]}
 
         for one_abb in hybrid_all_abbreviations:
-            if hybrid_all_abbreviations[one_abb] is None:
+            definitions = hybrid_all_abbreviations[one_abb]
+            if definitions is None:
                 print(one_abb)
                 continue
-            if len(hybrid_all_abbreviations[one_abb]) == 1:
+            if len(definitions) == 1 and definitions[0][1] == -1:
                 potential_abbreviations[one_abb] = 'Not Found Yet'
                 continue
             Hybrid_scores[one_abb] = []
             if one_abb in abbrev_json:
-                for definition_score in hybrid_all_abbreviations[one_abb]:
+                for definition_score in definitions:
                     if definition_score[1] == -1:
                         continue
                     Hybrid_scores[one_abb].append(definition_score)
                     if definition_score[0] in abbrev_json[one_abb].keys():
-                        abbrev_json[one_abb][definition_score[0]].append("Hybrid method")
+                        abbrev_json[one_abb][definition_score[0]].append("HybriDK+")
                     else:
-                        abbrev_json[one_abb][definition_score[0]] = ["Hybrid method"]
+                        abbrev_json[one_abb][definition_score[0]] = ["HybriDK+"]
             else:
                 abbrev_json[one_abb] = {}
-                for definition_score in hybrid_all_abbreviations[one_abb]:
+                for definition_score in definitions:
                     if definition_score[1] == -1:
                         continue
                     Hybrid_scores[one_abb].append(definition_score)
-                    abbrev_json[one_abb][definition_score[0]] = ["Hybrid method"]
+                    abbrev_json[one_abb][definition_score[0]] = ["HybriDK+"]
             # if "" in abbrev_json[one_abb].keys() and len(abbrev_json[one_abb].keys()) > 1:
             #     abbrev_json[one_abb].pop('')
             # if one_abb in abbrev_json:
@@ -632,9 +633,12 @@ class abbreviations:
                 for abbre in all_abb:
                     previously_found = definition_dict.get(abbre)
                     definition_score_tuple = Hybrid_definition_mining(sentence, abbre)
+                    # if abbre == 'NIBIB':
+                    #     print(definition_score_tuple)
+                    #     print(previously_found)
                     if temp.get(abbre) is not None:
                         if definition_score_tuple not in temp[abbre]:
-                            temp[abbre] = temp[abbre].append(definition_score_tuple)
+                            temp[abbre].append(definition_score_tuple)
                     elif previously_found is None:
                         # print(abbre)
                         temp[abbre] = [definition_score_tuple]
