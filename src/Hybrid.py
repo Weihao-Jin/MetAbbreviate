@@ -22,7 +22,7 @@ def read_stopwords():
     stop_words = []
     with open("src/stop_words.txt", "r") as f:
         for line in f:
-            stop_words.append(int(line.strip()))
+            stop_words.append(line.strip())
     return stop_words
 
 
